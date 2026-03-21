@@ -92,6 +92,9 @@ export default function DashboardPage({ readOnly = false }: { readOnly?: boolean
   const [shareUrl, setShareUrl] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [toast, setToast] = useState('');
+  const [regenerating, setRegenerating] = useState(false);
+  const [focusInsight, setFocusInsight] = useState<number | null>(null);
+  const [focusLoading, setFocusLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -112,6 +115,92 @@ export default function DashboardPage({ readOnly = false }: { readOnly?: boolean
     };
     load();
   }, [id, token]);
+
+  // ── Regenerate all 10 insights ───────────────────
+  const handleRegenerate = async () => {
+    if (!analysis || regenerating) return;
+    setRegenerating(true);
+    showToast('Regenerando análise com IA...');
+    try {
+      const r = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: analysis.source_type,
+          text: analysis.raw_text || analysis.title,
+        }),
+      });
+      if (!r.ok) throw new Error('Erro ao regenerar');
+      const result = await r.json();
+      const updated = {
+        ...analysis,
+        insights: result.insights,
+        charts_config: result.charts,
+        kpis: result.kpis,
+      };
+      setAnalysis(updated as any);
+      await updateAnalysis(analysis.id, {
+        insights: result.insights as any,
+        charts_config: result.charts as any,
+        kpis: result.kpis as any,
+      });
+      showToast('Análise regenerada com sucesso!');
+    } catch {
+      showToast('Erro ao regenerar. Tente novamente.');
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  // ── Generate focused dashboard from one insight ───
+  const handleFocusDashboard = async (ins: any) => {
+    if (!analysis || focusLoading) return;
+    setFocusInsight(ins.id);
+    setFocusLoading(true);
+    try {
+      const focusPrompt = `Foco exclusivo no tópico: "${ins.title}". 
+Descrição: ${ins.description}. 
+${ins.value ? `Valor: ${ins.value}.` : ''}
+Contexto do documento original: ${analysis.title}.
+Raw text: ${analysis.raw_text?.slice(0, 30000) || ''}`;
+
+      const r = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: analysis.source_type,
+          text: focusPrompt,
+        }),
+      });
+      if (!r.ok) throw new Error('Erro ao gerar dashboard focado');
+      const result = await r.json();
+
+      // Save as new analysis
+      const { data: saved } = await import('../lib/supabase').then(m =>
+        m.createAnalysis({
+          user_id: user!.id,
+          title: `${ins.title} — Análise detalhada`,
+          source_type: analysis.source_type,
+          source_name: analysis.source_name,
+          raw_text: analysis.raw_text,
+          insights: result.insights as any,
+          charts_config: result.charts as any,
+          kpis: result.kpis as any,
+          telegram_enabled: false,
+        })
+      );
+
+      if (saved?.id) {
+        window.open(`/dashboard/${saved.id}`, '_blank');
+        showToast('Dashboard focado criado! Abrindo em nova aba...');
+      }
+    } catch {
+      showToast('Erro ao gerar dashboard focado.');
+    } finally {
+      setFocusInsight(null);
+      setFocusLoading(false);
+    }
+  };
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -259,17 +348,52 @@ export default function DashboardPage({ readOnly = false }: { readOnly?: boolean
 
       {/* 10 Insights */}
       <div className="insights-section">
-        <div className="section-label">10 Principais Insights</div>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <div className="section-label" style={{ marginBottom:0 }}>10 Principais Insights</div>
+          {!readOnly && (
+            <button
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              style={{
+                display:'flex', alignItems:'center', gap:6,
+                background: regenerating ? 'var(--surface-3)' : 'var(--gold-dim)',
+                border:'1px solid rgba(59,130,246,.22)',
+                color: regenerating ? 'var(--t3)' : '#60a5fa',
+                borderRadius:'var(--r8)', padding:'6px 12px',
+                cursor: regenerating ? 'not-allowed' : 'pointer',
+                fontSize:12, fontFamily:'var(--sans)',
+                transition:'all .15s',
+              }}
+            >
+              {regenerating
+                ? <><Loader size={12} style={{ animation:'spin 1s linear infinite' }}/> Regenerando...</>
+                : <><RefreshCw size={12}/> Gerar novamente</>}
+            </button>
+          )}
+        </div>
         <div className="insights-grid">
           {analysis.insights.map(ins => (
-            <div key={ins.id} className="insight-card">
+            <div key={ins.id} className="insight-card" style={{ position:'relative' }}>
               <div className="insight-head">
                 <div className="insight-num">{String(ins.id).padStart(2, '0')}</div>
                 <div className="insight-category">{ins.category}</div>
                 {!readOnly && (
-                  <button className="insight-edit-btn" onClick={() => { setEditingInsight(ins.id); setEditBuf(ins.description); }}>
-                    <Edit2 size={11} />
-                  </button>
+                  <div style={{ marginLeft:'auto', display:'flex', gap:4 }}>
+                    <button className="insight-edit-btn" title="Editar" onClick={(e) => { e.stopPropagation(); setEditingInsight(ins.id); setEditBuf(ins.description); }}>
+                      <Edit2 size={11} />
+                    </button>
+                    <button
+                      className="insight-edit-btn"
+                      title="Gerar dashboard focado neste tópico"
+                      disabled={focusLoading}
+                      onClick={(e) => { e.stopPropagation(); handleFocusDashboard(ins); }}
+                      style={{ opacity: focusLoading && focusInsight !== ins.id ? 0.3 : 1 }}
+                    >
+                      {focusInsight === ins.id
+                        ? <Loader size={11} style={{ animation:'spin 1s linear infinite' }}/>
+                        : <Sparkles size={11} />}
+                    </button>
+                  </div>
                 )}
               </div>
               <div className="insight-title">{ins.title}</div>

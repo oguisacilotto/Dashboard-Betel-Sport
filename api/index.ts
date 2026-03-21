@@ -533,3 +533,14 @@ app.post('/api/admin/create-user', async (req, res) => {
     res.json({ ok: true, userId: data.user.id });
   } catch (err: any) { res.status(500).json({ message: err.message }); }
 });
+
+// ── Analyze — generic text (for regenerate + focus dashboard) ──
+app.post('/api/analyze', async (req, res) => {
+  try {
+    const { type, text } = req.body;
+    if (!text) return res.status(400).json({ message: 'Texto obrigatório.' });
+    const analyzeWithClaude = await getClaude();
+    const result = await analyzeWithClaude(text, type || 'text');
+    res.json(result);
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
