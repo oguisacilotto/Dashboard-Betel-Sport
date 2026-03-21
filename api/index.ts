@@ -49,6 +49,8 @@ app.get('/api/health', (_req, res) => {
     env: {
       supabase: !!process.env.VITE_SUPABASE_URL,
       gemini: !!process.env.GEMINI_API_KEY,
+      telegram_bot: !!process.env.TELEGRAM_BOT_TOKEN,
+      telegram_admin: !!process.env.ADMIN_TELEGRAM_CHAT_ID,
       nextcloud: !!process.env.NEXTCLOUD_URL,
     }
   });
