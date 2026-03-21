@@ -59,10 +59,10 @@ export default function LoginPage() {
   };
 
   const inp: React.CSSProperties = {
-    width: '100%', background: '#1b1b22',
+    width: '100%', background: '#101620',
     border: '1px solid rgba(255,255,255,0.10)',
     borderRadius: '8px', padding: '10px 12px',
-    color: '#f0ede8', fontSize: '13px', outline: 'none',
+    color: '#e8f0fe', fontSize: '13px', outline: 'none',
     fontFamily: "'Geist', system-ui, sans-serif", boxSizing: 'border-box',
     transition: 'border-color .15s',
   };
@@ -74,15 +74,15 @@ export default function LoginPage() {
         <div style={card}>
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <div style={{ fontSize: '40px', marginBottom: '16px' }}>⏳</div>
-            <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: '20px', color: '#f0ede8', marginBottom: '8px' }}>
+            <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: '20px', color: '#e8f0fe', marginBottom: '8px' }}>
               Solicitação enviada!
             </div>
-            <div style={{ fontSize: '12.5px', color: '#8b8990', lineHeight: '1.6', marginBottom: '24px' }}>
+            <div style={{ fontSize: '12.5px', color: '#7a92b4', lineHeight: '1.6', marginBottom: '24px' }}>
               Sua solicitação foi enviada ao administrador.<br/>
               Você receberá um e-mail assim que sua conta for aprovada.
             </div>
             <button onClick={() => { setMode('login'); setEmail(''); setPassword(''); setName(''); }}
-              style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', color: '#8b8990', padding: '9px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontFamily: "'Geist', system-ui, sans-serif" }}>
+              style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', color: '#7a92b4', padding: '9px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontFamily: "'Geist', system-ui, sans-serif" }}>
               Voltar ao login
             </button>
           </div>
@@ -97,23 +97,23 @@ export default function LoginPage() {
       <div style={card}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ width: '48px', height: '48px', background: '#d4a853', borderRadius: '12px', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '48px', height: '48px', background: '#3b82f6', borderRadius: '12px', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
-              <polygon points="8,1 15,6 12,15 4,15 1,6" fill="#08080c"/>
+              <polygon points="8,1 15,6 12,15 4,15 1,6" fill="#040608"/>
               <polygon points="8,1 15,6 8,9" fill="rgba(0,0,0,0.3)"/>
             </svg>
           </div>
-          <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: '22px', color: '#f0ede8', marginBottom: '3px' }}>Betel Sport</div>
-          <div style={{ fontSize: '10.5px', color: '#4e4d52', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Central de Resultados</div>
+          <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: '22px', color: '#e8f0fe', marginBottom: '3px' }}>Betel Sport</div>
+          <div style={{ fontSize: '10.5px', color: '#3d5270', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Central de Resultados</div>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', background: '#141419', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '3px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', background: '#0b1018', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '3px', marginBottom: '24px' }}>
           {(['login', 'signup'] as const).map(m => (
             <button key={m} onClick={() => { setMode(m); setError(''); }} style={{
               flex: 1, padding: '8px', borderRadius: '8px',
-              background: mode === m ? '#d4a853' : 'transparent',
-              color: mode === m ? '#08080c' : '#8b8990',
+              background: mode === m ? '#3b82f6' : 'transparent',
+              color: mode === m ? '#040608' : '#7a92b4',
               border: 'none', cursor: 'pointer',
               fontSize: '12.5px', fontWeight: mode === m ? 700 : 400,
               transition: 'all .15s', fontFamily: "'Geist', system-ui, sans-serif",
@@ -142,13 +142,13 @@ export default function LoginPage() {
             <input style={inp} type="password" value={password} onChange={e => setPassword(e.target.value)}
               placeholder="••••••••" required autoComplete={mode === 'login' ? 'current-password' : 'new-password'}/>
             {mode === 'signup' && (
-              <div style={{ fontSize: '11px', color: '#4e4d52', marginTop: '4px' }}>Mínimo 6 caracteres</div>
+              <div style={{ fontSize: '11px', color: '#3d5270', marginTop: '4px' }}>Mínimo 6 caracteres</div>
             )}
           </div>
 
           {/* Error */}
           {error && (
-            <div style={{ background: 'rgba(242,107,107,0.08)', border: '1px solid rgba(242,107,107,0.25)', borderRadius: '8px', padding: '10px 12px', fontSize: '12.5px', color: '#f09595', lineHeight: '1.4' }}>
+            <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.25)', borderRadius: '8px', padding: '10px 12px', fontSize: '12.5px', color: '#fb7185', lineHeight: '1.4' }}>
               {error}
             </div>
           )}
@@ -162,8 +162,8 @@ export default function LoginPage() {
 
           <button type="submit" disabled={loading} style={{
             marginTop: '4px', width: '100%', padding: '12px',
-            background: loading ? '#8a6e30' : '#d4a853',
-            color: '#08080c', fontWeight: 700, border: 'none',
+            background: loading ? '#1d4ed8' : '#3b82f6',
+            color: '#040608', fontWeight: 700, border: 'none',
             borderRadius: '10px', fontSize: '13px',
             cursor: loading ? 'not-allowed' : 'pointer',
             transition: 'background .15s',
@@ -182,9 +182,9 @@ export default function LoginPage() {
 
 function Signature() {
   return (
-    <div style={{ marginTop: '28px', fontSize: '11px', color: '#3a3940', display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <div style={{ marginTop: '28px', fontSize: '11px', color: '#1e3a5f', display: 'flex', alignItems: 'center', gap: '6px' }}>
       <span>by</span>
-      <span style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: '12px', color: '#6b6340', fontStyle: 'italic' }}>
+      <span style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: '12px', color: '#3b5a9a', fontStyle: 'italic' }}>
         Guilherme Sacilotto
       </span>
     </div>
@@ -192,19 +192,19 @@ function Signature() {
 }
 
 const shell: React.CSSProperties = {
-  minHeight: '100vh', background: '#08080c',
+  minHeight: '100vh', background: '#040608',
   display: 'flex', flexDirection: 'column',
   alignItems: 'center', justifyContent: 'center',
   fontFamily: "'Geist', system-ui, sans-serif", padding: '24px',
 };
 const card: React.CSSProperties = {
   width: '100%', maxWidth: '400px',
-  background: '#0e0e14',
+  background: '#070b10',
   border: '1px solid rgba(255,255,255,0.07)',
   borderRadius: '20px', padding: '40px',
 };
 const labelStyle: React.CSSProperties = {
   fontSize: '10px', fontWeight: 600,
   letterSpacing: '0.1em', textTransform: 'uppercase',
-  color: '#4e4d52', display: 'block', marginBottom: '6px',
+  color: '#3d5270', display: 'block', marginBottom: '6px',
 };

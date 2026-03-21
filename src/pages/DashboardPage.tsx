@@ -9,7 +9,7 @@ import {
   Share2, Send, Download, ChevronDown, ChevronUp,
   Edit2, Check, X, Copy, ExternalLink
 } from 'lucide-react';
-import { getAnalysis, updateAnalysis, togglePublic, addShareRecord } from '../lib/supabase';
+import { getAnalysis, getAnalysisByToken, updateAnalysis, togglePublic, addShareRecord } from '../lib/supabase';
 import { sendTelegramReport, captureAndSendTelegram } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Analysis, Insight, ChartConfig } from '../types';
@@ -95,9 +95,18 @@ export default function DashboardPage({ readOnly = false }: { readOnly?: boolean
 
   useEffect(() => {
     const load = async () => {
-      if (id) {
-        const a = await getAnalysis(id);
+      try {
+        let a = null;
+        if (token) {
+          // Public shared view — load by token
+          a = await getAnalysisByToken(token);
+        } else if (id) {
+          // Private view — load by ID
+          a = await getAnalysis(id);
+        }
         setAnalysis(a);
+      } catch {
+        setAnalysis(null);
       }
       setLoading(false);
     };
