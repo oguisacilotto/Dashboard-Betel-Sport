@@ -4,8 +4,9 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import FormData from 'form-data';
 import { createClient } from '@supabase/supabase-js';
-import { analyzeWithClaude } from './claude';
-import { parseFile } from './parser';
+import { analyzeWithClaude } from './services/claude';
+import { parseFile } from './services/parser';
+import { scrapeUrl, queryDatabase, fetchFromNextcloud, buildTelegramMessage } from './services/services';
 
 dotenv.config();
 
