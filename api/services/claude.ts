@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const SYSTEM_PROMPT = `Você é um analista de dados especialista para o Dashboard Betel Sport.
 Analise qualquer documento e extraia informações estruturadas para um dashboard executivo.
@@ -47,34 +47,25 @@ export async function analyzeWithClaude(
   sourceType: string,
   imageBase64?: string
 ): Promise<any> {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const prompt = `${SYSTEM_PROMPT}\n\nAnalise (tipo: ${sourceType}):\n\n${text.slice(0, 80000)}`;
 
-  let contents: any[];
+  let result;
 
   if (imageBase64) {
-    // Vision: image + text
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-    const mimeType = imageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-    contents = [{
-      role: 'user',
-      parts: [
-        { inlineData: { mimeType, data: base64Data } },
-        { text: prompt },
-      ],
-    }];
+    const mimeType   = imageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+    result = await model.generateContent([
+      prompt,
+      { inlineData: { mimeType, data: base64Data } },
+    ]);
   } else {
-    contents = [{ role: 'user', parts: [{ text: prompt }] }];
+    result = await model.generateContent(prompt);
   }
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-1.5-flash',
-    contents,
-    config: { maxOutputTokens: 8192, temperature: 0.2 },
-  });
-
-  const raw = (response.text ?? '')
+  const raw = result.response.text()
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
     .replace(/```\s*$/i, '')
