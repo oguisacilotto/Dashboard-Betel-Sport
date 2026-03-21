@@ -48,7 +48,7 @@ app.get('/api/health', (_req, res) => {
     ok: true,
     env: {
       supabase: !!process.env.VITE_SUPABASE_URL,
-      anthropic: !!process.env.ANTHROPIC_API_KEY,
+      gemini: !!process.env.GEMINI_API_KEY,
       nextcloud: !!process.env.NEXTCLOUD_URL,
     }
   });

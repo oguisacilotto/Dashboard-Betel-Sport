@@ -1,6 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { GoogleGenAI } from '@google/genai';
 
 const SYSTEM_PROMPT = `Você é um analista de dados especialista para o Dashboard Betel Sport.
 Analise qualquer documento e extraia informações estruturadas para um dashboard executivo.
@@ -40,7 +38,7 @@ REGRAS:
 - Exatamente 10 insights (id 1–10)
 - Exatamente 10 gráficos: ids 1–4 com visible:true, ids 5–10 com visible:false
 - Máximo 6 KPIs, os mais relevantes
-- Tipos de gráfico adequados ao dado: séries temporais=line/area, distribuição=pie/donut, comparação=bar
+- Tipos de gráfico adequados: séries temporais=line/area, distribuição=pie/donut, comparação=bar
 - Valores monetários em formato BR (R$ 1.234,56), percentuais com vírgula (12,4%)
 - Categories: financeiro|vendas|operacional|estoque|tendencia|alerta|destaque|meta|comparativo|previsao`;
 
@@ -49,27 +47,38 @@ export async function analyzeWithClaude(
   sourceType: string,
   imageBase64?: string
 ): Promise<any> {
-  const userContent = `Analise (tipo: ${sourceType}):\n\n${text.slice(0, 80000)}`;
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-  const messages: Anthropic.MessageParam[] = imageBase64
-    ? [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64.replace(/^data:image\/\w+;base64,/, '') } },
-          { type: 'text', text: userContent },
-        ],
-      }]
-    : [{ role: 'user', content: userContent }];
+  const prompt = `${SYSTEM_PROMPT}\n\nAnalise (tipo: ${sourceType}):\n\n${text.slice(0, 80000)}`;
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 8000,
-    system: SYSTEM_PROMPT,
-    messages,
+  let contents: any[];
+
+  if (imageBase64) {
+    // Vision: image + text
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const mimeType = imageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+    contents = [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType, data: base64Data } },
+        { text: prompt },
+      ],
+    }];
+  } else {
+    contents = [{ role: 'user', parts: [{ text: prompt }] }];
+  }
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.0-flash',
+    contents,
+    config: { maxOutputTokens: 8192, temperature: 0.2 },
   });
 
-  const raw = (response.content[0] as Anthropic.TextBlock).text
-    .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  const raw = (response.text ?? '')
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
 
   return JSON.parse(raw);
 }
