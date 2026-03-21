@@ -352,3 +352,118 @@ app.get('/api/auth/reject/:userId', async (req, res) => {
     `);
   } catch (err: any) { res.status(500).send(`Erro: ${err.message}`); }
 });
+
+// ══════════════════════════════════════════════════
+// ADMIN ENDPOINTS
+// ══════════════════════════════════════════════════
+
+// ── List all users ────────────────────────────────
+app.get('/api/admin/users', async (_req, res) => {
+  try {
+    const supabase = getAdmin();
+    const { data, error } = await supabase.auth.admin.listUsers();
+    if (error) return res.status(500).json({ message: error.message });
+
+    const users = await Promise.all(data.users.map(async (u: any) => {
+      const { data: profile } = await supabase.from('profiles').select('name, role, status').eq('id', u.id).single();
+      return {
+        id:           u.id,
+        email:        u.email,
+        name:         profile?.name || u.user_metadata?.name || '',
+        role:         profile?.role || 'user',
+        status:       u.email_confirmed_at ? (profile?.status || 'active') : 'pending',
+        created_at:   u.created_at,
+        last_sign_in: u.last_sign_in_at,
+      };
+    }));
+
+    res.json({ users });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Approve user (POST) ───────────────────────────
+app.post('/api/admin/approve/:userId', async (req, res) => {
+  try {
+    const supabase = getAdmin();
+    const { userId } = req.params;
+    await supabase.auth.admin.updateUser(userId, { email_confirm: true, user_metadata: { status: 'approved' } });
+    await supabase.from('profiles').update({ status: 'active' }).eq('id', userId);
+    res.json({ ok: true });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Reject/delete user (POST) ─────────────────────
+app.post('/api/admin/reject/:userId', async (req, res) => {
+  try {
+    const supabase = getAdmin();
+    const { userId } = req.params;
+    await supabase.auth.admin.deleteUser(userId);
+    res.json({ ok: true });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Update user info ──────────────────────────────
+app.post('/api/admin/update-user', async (req, res) => {
+  try {
+    const { userId, name, email, role } = req.body;
+    const supabase = getAdmin();
+    if (email) await supabase.auth.admin.updateUser(userId, { email });
+    await supabase.from('profiles').update({ name, role }).eq('id', userId);
+    res.json({ ok: true });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Reset password ────────────────────────────────
+app.post('/api/admin/reset-password', async (req, res) => {
+  try {
+    const { userId, password } = req.body;
+    const supabase = getAdmin();
+    const { error } = await supabase.auth.admin.updateUser(userId, { password });
+    if (error) return res.status(500).json({ message: error.message });
+    res.json({ ok: true });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Send email to user ────────────────────────────
+app.post('/api/admin/send-email', async (req, res) => {
+  try {
+    const { userId, subject, body } = req.body;
+    const supabase = getAdmin();
+    const { data: user } = await supabase.auth.admin.getUserById(userId);
+    if (!user?.user?.email) return res.status(404).json({ message: 'Usuário não encontrado' });
+
+    // Use Supabase inviteUser as email channel — or direct SMTP if configured
+    // For now, use Telegram notification as fallback + log
+    const botToken   = process.env.TELEGRAM_BOT_TOKEN;
+    const adminChat  = process.env.ADMIN_TELEGRAM_CHAT_ID;
+    if (botToken && adminChat) {
+      await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        chat_id: adminChat,
+        text: `📧 *E-mail enviado para ${user.user.email}*\n\n*Assunto:* ${subject}\n\n${body}`,
+        parse_mode: 'Markdown',
+      }, { timeout: 8000 });
+    }
+
+    // Send via Supabase magic link / reset as carrier (best available without SMTP)
+    await supabase.auth.admin.inviteUserByEmail(user.user.email, {
+      data: { admin_message_subject: subject, admin_message_body: body },
+      redirectTo: `${process.env.VITE_APP_URL || 'https://dashboard-betel-sport.vercel.app'}/login`,
+    });
+
+    res.json({ ok: true });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Promote self to admin (first-time setup) ──────
+app.post('/api/admin/promote-self', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const supabase = getAdmin();
+    await supabase.from('profiles').update({ role: 'admin', status: 'active' }).eq('id', userId);
+    await supabase.auth.admin.updateUser(userId, {
+      email_confirm: true,
+      user_metadata: { role: 'admin', status: 'approved' },
+    });
+    res.json({ ok: true });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});

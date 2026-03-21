@@ -115,3 +115,6 @@ create trigger set_analyses_updated_at
 create trigger set_profiles_updated_at
   before update on public.profiles
   for each row execute function public.set_updated_at();
+
+-- ── ADD STATUS TO PROFILES (run if not exists) ─────
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status text default 'active';

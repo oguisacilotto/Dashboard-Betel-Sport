@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, Clock, Send, Settings, LogOut, Shield } from 'lucide-react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import LoginPage from './pages/LoginPage';
@@ -13,6 +13,8 @@ function Sidebar() {
   const { user, profile } = useAuth();
   const loc = useLocation();
   const is  = (p: string) => loc.pathname.startsWith(p);
+  const isAdmin = profile?.role === 'admin';
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -32,12 +34,17 @@ function Sidebar() {
           <Link to="/import"   className={`nav-link ${is('/import')   ? 'active' : ''}`}><Upload   size={15}/> Importar dados</Link>
           <Link to="/history"  className={`nav-link ${is('/history')  ? 'active' : ''}`}><Clock    size={15}/> Histórico</Link>
           <Link to="/telegram" className={`nav-link ${is('/telegram') ? 'active' : ''}`}><Send     size={15}/> Telegram</Link>
-          <Link to="/settings" className={`nav-link ${is('/settings') ? 'active' : ''}`}><Settings size={15}/> Configurações</Link>
         </div>
-        {profile?.role === 'admin' && (
+        {isAdmin && (
           <div className="nav-section">
             <div className="nav-section-label">Administração</div>
-            <Link to="/admin" className={`nav-link ${is('/admin') ? 'active' : ''}`}><Shield size={15}/> Usuários</Link>
+            <Link to="/admin"    className={`nav-link ${is('/admin')    ? 'active' : ''}`}><Shield   size={15}/> Usuários</Link>
+            <Link to="/settings" className={`nav-link ${is('/settings') ? 'active' : ''}`}><Settings size={15}/> Configurações</Link>
+          </div>
+        )}
+        {!isAdmin && (
+          <div className="nav-section">
+            <Link to="/settings" className={`nav-link ${is('/settings') ? 'active' : ''}`}><Settings size={15}/> Configurações</Link>
           </div>
         )}
       </nav>
@@ -48,17 +55,18 @@ function Sidebar() {
             <div className="user-name">{profile?.name || user?.email?.split('@')[0]}</div>
             <div className="user-role">{profile?.role === 'admin' ? 'Administrador' : 'Betel Sport'}</div>
           </div>
-          <button className="icon-btn" onClick={() => signOut()} style={{ marginLeft:'auto' }} title="Sair"><LogOut size={14}/></button>
+          <button className="icon-btn" onClick={() => signOut()} title="Sair" style={{ marginLeft:'auto' }}><LogOut size={14}/></button>
         </div>
       </div>
     </aside>
   );
 }
 
-function PrivateLayout({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+function PrivateLayout({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+  const { session, loading, profile } = useAuth();
   if (loading)  return <div className="page-loading">Carregando...</div>;
   if (!session) return <Navigate to="/login" replace/>;
+  if (adminOnly && profile?.role !== 'admin') return <Navigate to="/import" replace/>;
   return (
     <div className="app">
       <Sidebar/>
@@ -96,6 +104,29 @@ function TelegramPage() {
   );
 }
 
+// Auto-promote first user to admin on first login
+function AutoPromote() {
+  const { user, profile, refreshProfile } = useAuth();
+  useEffect(() => {
+    if (user && profile && profile.role !== 'admin') {
+      // Check if this is the only user / owner account
+      fetch('/api/admin/users').then(r => r.json()).then(async d => {
+        const users = d.users || [];
+        const isFirst = users.length === 1 && users[0].id === user.id;
+        if (isFirst) {
+          await fetch('/api/admin/promote-self', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id }),
+          });
+          await refreshProfile();
+        }
+      }).catch(() => {});
+    }
+  }, [user, profile]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -103,14 +134,14 @@ export default function App() {
         <Routes>
           <Route path="/login"         element={<LoginPage/>}/>
           <Route path="/public/:token" element={<DashboardPage readOnly/>}/>
-          <Route path="/import"        element={<PrivateLayout><ImportPage/></PrivateLayout>}/>
+          <Route path="/import"        element={<PrivateLayout><AutoPromote/><ImportPage/></PrivateLayout>}/>
           <Route path="/history"       element={<PrivateLayout><HistoryPage/></PrivateLayout>}/>
           <Route path="/dashboard/:id" element={<PrivateLayout><DashboardPage/></PrivateLayout>}/>
           <Route path="/telegram"      element={<PrivateLayout><TelegramPage/></PrivateLayout>}/>
-          <Route path="/admin"         element={<PrivateLayout><AdminPage/></PrivateLayout>}/>
+          <Route path="/admin"         element={<PrivateLayout adminOnly><AdminPage/></PrivateLayout>}/>
           <Route path="/settings"      element={<PrivateLayout><div className="page-head"><h1>Configurações</h1></div></PrivateLayout>}/>
-          <Route path="/"  element={<Navigate to="/import" replace/>}/>
-          <Route path="*"  element={<Navigate to="/import" replace/>}/>
+          <Route path="/"              element={<Navigate to="/import" replace/>}/>
+          <Route path="*"              element={<Navigate to="/import" replace/>}/>
         </Routes>
       </BrowserRouter>
     </AuthProvider>
