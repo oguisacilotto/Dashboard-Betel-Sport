@@ -483,3 +483,53 @@ app.post('/api/telegram/test', async (req, res) => {
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ message: err.message }); }
 });
+
+// ── Admin — create user directly ─────────────────────
+app.post('/api/admin/create-user', async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ message: 'Nome, e-mail e senha são obrigatórios.' });
+    if (password.length < 6) return res.status(400).json({ message: 'Senha mínima: 6 caracteres.' });
+
+    const supabase = getAdmin();
+
+    // Check duplicate
+    const { data: existing } = await supabase.auth.admin.listUsers();
+    if (existing?.users?.find((u: any) => u.email === email)) {
+      return res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
+    }
+
+    // Create user — confirmed immediately (admin created)
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name, role: role || 'user', status: 'approved' },
+    });
+
+    if (error) return res.status(500).json({ message: error.message });
+
+    // Set profile
+    await supabase.from('profiles').upsert({
+      id: data.user.id,
+      name,
+      role: role || 'user',
+      status: 'active',
+    });
+
+    // Telegram notification
+    try {
+      const botToken  = process.env.TELEGRAM_BOT_TOKEN;
+      const adminChat = process.env.ADMIN_TELEGRAM_CHAT_ID;
+      if (botToken && adminChat) {
+        await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          chat_id: adminChat,
+          text: `✅ *Novo usuário criado pelo admin*\n\n👤 *Nome:* ${name}\n📧 *E-mail:* ${email}\n🔑 *Função:* ${role || 'user'}`,
+          parse_mode: 'Markdown',
+        }, { timeout: 8000 });
+      }
+    } catch {}
+
+    res.json({ ok: true, userId: data.user.id });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});

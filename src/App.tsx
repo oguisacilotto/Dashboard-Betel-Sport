@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import LoginPage from './pages/LoginPage';
 import ImportPage from './pages/ImportPage';
 import DashboardPage from './pages/DashboardPage';
-import { HistoryPage } from './pages/HistoryPage';
+import HistoryPage from './pages/HistoryPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
 import { signOut, updateProfile } from './lib/supabase';
