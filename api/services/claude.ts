@@ -48,7 +48,15 @@ export async function analyzeWithClaude(
   imageBase64?: string
 ): Promise<any> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+  // Use gemini-2.5-flash — current stable free tier model (March 2026)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      maxOutputTokens: 8192,
+      temperature: 0.2,
+    },
+  });
 
   const prompt = `${SYSTEM_PROMPT}\n\nAnalise (tipo: ${sourceType}):\n\n${text.slice(0, 80000)}`;
 
