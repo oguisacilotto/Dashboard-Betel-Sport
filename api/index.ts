@@ -220,3 +220,133 @@ app.get('/api/admin/check-user', async (req, res) => {
     }
   } catch (err: any) { res.status(500).json({ message: err.message }); }
 });
+
+// ── Auth — request access (signup sem confirmação de email) ──
+app.post('/api/auth/request-access', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ message: 'Nome, e-mail e senha são obrigatórios.' });
+    if (password.length < 6) return res.status(400).json({ message: 'A senha deve ter no mínimo 6 caracteres.' });
+
+    const supabase = getAdmin();
+
+    // Check if email already exists
+    const { data: existing } = await supabase.auth.admin.listUsers();
+    const alreadyExists = existing?.users?.find((u: any) => u.email === email);
+    if (alreadyExists) return res.status(409).json({ message: 'Este e-mail já possui uma solicitação ou conta cadastrada.' });
+
+    // Create user but do NOT confirm — set banned:false + email_confirmed:false
+    // User is created with a pending status via user_metadata
+    const { data: userData, error: createErr } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: false,
+      user_metadata: { name, status: 'pending' },
+    });
+
+    if (createErr) return res.status(500).json({ message: createErr.message });
+
+    // Send Telegram notification to admin
+    try {
+      const adminChatId = process.env.ADMIN_TELEGRAM_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID;
+      const botToken    = process.env.TELEGRAM_BOT_TOKEN;
+
+      if (adminChatId && botToken) {
+        const approveUrl = `${process.env.VITE_APP_URL || 'https://dashboard-betel-sport.vercel.app'}/api/auth/approve/${userData.user?.id}`;
+        const rejectUrl  = `${process.env.VITE_APP_URL || 'https://dashboard-betel-sport.vercel.app'}/api/auth/reject/${userData.user?.id}`;
+
+        const msg = `🔔 *Nova solicitação de acesso*\n\n👤 *Nome:* ${name}\n📧 *E-mail:* ${email}\n🕐 *Data:* ${new Date().toLocaleString('pt-BR')}\n\n✅ [Aprovar acesso](${approveUrl})\n❌ [Rejeitar](${rejectUrl})`;
+
+        await axios.post(
+          `https://api.telegram.org/bot${botToken}/sendMessage`,
+          { chat_id: adminChatId, text: msg, parse_mode: 'Markdown', disable_web_page_preview: true },
+          { timeout: 8000 }
+        );
+      }
+    } catch (teleErr) {
+      console.error('Telegram notify error:', teleErr);
+      // Don't fail the request if Telegram fails
+    }
+
+    res.json({ ok: true, message: 'Solicitação enviada. Aguarde aprovação do administrador.' });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Auth — approve user ───────────────────────────────
+app.get('/api/auth/approve/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const supabase = getAdmin();
+
+    const { error } = await supabase.auth.admin.updateUser(userId, {
+      email_confirm: true,
+      user_metadata: { status: 'approved' },
+    });
+
+    if (error) return res.status(500).send(`<h2>Erro ao aprovar: ${error.message}</h2>`);
+
+    // Notify user by email via Supabase (magic link / custom)
+    const { data: user } = await supabase.auth.admin.getUserById(userId);
+    const userName = user?.user?.user_metadata?.name || 'Usuário';
+    const userEmail = user?.user?.email || '';
+
+    // Send Telegram confirmation to admin
+    try {
+      const adminChatId = process.env.ADMIN_TELEGRAM_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID;
+      const botToken    = process.env.TELEGRAM_BOT_TOKEN;
+      if (adminChatId && botToken) {
+        await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          chat_id: adminChatId,
+          text: `✅ Conta de *${userName}* (${userEmail}) foi *aprovada* com sucesso!`,
+          parse_mode: 'Markdown',
+        }, { timeout: 8000 });
+      }
+    } catch {}
+
+    res.send(`
+      <html><body style="font-family:system-ui;background:#08080c;color:#f0ede8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+        <div style="text-align:center;max-width:400px">
+          <div style="font-size:48px;margin-bottom:16px">✅</div>
+          <h2 style="font-family:'Georgia',serif;margin-bottom:8px">Conta aprovada!</h2>
+          <p style="color:#8b8990;font-size:14px">A conta de <strong style="color:#d4a853">${userName}</strong> (${userEmail}) foi liberada com sucesso.</p>
+          <p style="color:#8b8990;font-size:12px;margin-top:16px">O usuário já pode fazer login em<br/><a href="https://dashboard-betel-sport.vercel.app" style="color:#d4a853">dashboard-betel-sport.vercel.app</a></p>
+        </div>
+      </body></html>
+    `);
+  } catch (err: any) { res.status(500).send(`Erro: ${err.message}`); }
+});
+
+// ── Auth — reject user ────────────────────────────────
+app.get('/api/auth/reject/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const supabase = getAdmin();
+    const { data: user } = await supabase.auth.admin.getUserById(userId);
+    const userName  = user?.user?.user_metadata?.name || 'Usuário';
+    const userEmail = user?.user?.email || '';
+
+    await supabase.auth.admin.deleteUser(userId);
+
+    try {
+      const adminChatId = process.env.ADMIN_TELEGRAM_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID;
+      const botToken    = process.env.TELEGRAM_BOT_TOKEN;
+      if (adminChatId && botToken) {
+        await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          chat_id: adminChatId,
+          text: `❌ Solicitação de *${userName}* (${userEmail}) foi *rejeitada e removida*.`,
+          parse_mode: 'Markdown',
+        }, { timeout: 8000 });
+      }
+    } catch {}
+
+    res.send(`
+      <html><body style="font-family:system-ui;background:#08080c;color:#f0ede8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+        <div style="text-align:center;max-width:400px">
+          <div style="font-size:48px;margin-bottom:16px">❌</div>
+          <h2 style="font-family:'Georgia',serif;margin-bottom:8px">Solicitação rejeitada</h2>
+          <p style="color:#8b8990;font-size:14px">A conta de <strong>${userName}</strong> foi removida.</p>
+        </div>
+      </body></html>
+    `);
+  } catch (err: any) { res.status(500).send(`Erro: ${err.message}`); }
+});
