@@ -25,84 +25,147 @@ const STEPS: TourStep[] = [
     description:'Escolha de onde vêm seus dados: PDF, Excel, CSV, XML, URL, banco de dados, imagens, áudio ou Nextcloud. Clique na fonte desejada e o sistema configura automaticamente.' },
   { id:'telegram-toggle', route:'/import', selector:'.telegram-toggle', position:'top', icon:<Send size={20}/>,
     title:'Envio automático ao Telegram',
-    description:'Este toggle controla se os resultados serão enviados automaticamente ao seu Telegram após a análise. Desative para documentos confidenciais.' },
+    description:'Este toggle controla se os resultados serão enviados ao Telegram após a análise. Desative para documentos confidenciais.' },
   { id:'history', route:'/history', selector:'.page-head', position:'bottom', icon:<Clock size={20}/>,
     title:'Histórico de análises',
-    description:'As 2 análises mais recentes ficam sempre visíveis em destaque. Clique em "Ver mais" para expandir até 20. Clique em qualquer análise para abrir o dashboard completo.' },
+    description:'As 2 análises mais recentes ficam sempre em destaque. Clique em "Ver mais" para expandir até 20. Clique em qualquer análise para abrir o dashboard completo.' },
   { id:'regenerate', route:'/history', position:'center', icon:<RefreshCw size={20}/>,
     title:'Regenerar e focar insights',
-    description:'No dashboard, o botão "Gerar novamente" pede ao Gemini uma nova análise. O ícone ✨ em cada insight gera um dashboard focado exclusivamente naquele tópico — abre em nova aba!' },
+    description:'No dashboard, "Gerar novamente" pede ao Gemini uma nova análise. O ícone ✨ em cada insight gera um dashboard focado naquele tópico — abre em nova aba!' },
   { id:'comments', route:'/history', position:'center', icon:<MessageCircle size={20}/>,
     title:'Comentários nos insights',
-    description:'Cada insight tem um botão "Comentar". Adicione observações, planos de ação ou contexto. Os comentários ficam salvos por análise e visíveis para toda a equipe com acesso.' },
+    description:'Cada insight tem um botão "Comentar". Adicione observações, planos de ação ou contexto. Os comentários ficam salvos e visíveis para toda a equipe.' },
   { id:'compare', route:'/compare', selector:'.page-head', position:'bottom', icon:<GitCompare size={20}/>,
     title:'Comparador de análises',
-    description:'Selecione duas análises e veja os KPIs lado a lado com % de diferença. Setas verde/vermelho indicam qual está melhor em cada métrica. Ideal para comparar meses ou filiais.' },
+    description:'Selecione duas análises e veja KPIs lado a lado com % de diferença. Setas verde/vermelho indicam qual está melhor em cada métrica.' },
   { id:'schedule', route:'/schedule', selector:'.page-head', position:'bottom', icon:<CalendarClock size={20}/>,
     title:'Agendamentos automáticos',
-    description:'Configure relatórios que rodam sozinhos: arquivo do Nextcloud, frequência (diário, semanal, quinzenal...) e template. O sistema analisa e envia o resumo no Telegram.' },
+    description:'Configure relatórios que rodam sozinhos: arquivo do Nextcloud, frequência e template. O sistema analisa e envia o resumo no Telegram automaticamente.' },
   { id:'settings', route:'/settings', selector:'.page-head', position:'bottom', icon:<Settings size={20}/>,
     title:'Configurações',
-    description:'Edite perfil, altere senha, configure Telegram com botão de teste e veja informações da sua conta. Tudo organizado em 5 abas.' },
+    description:'Edite perfil, altere senha, configure Telegram com botão de teste e veja informações da sua conta. Tudo em 5 abas organizadas.' },
   { id:'admin', route:'/admin', selector:'.page-head', position:'bottom', icon:<Shield size={20}/>,
     title:'Painel do administrador',
-    description:'Gerencie todos os usuários: aprove solicitações, crie contas diretamente, redefina senhas, edite perfis e envie e-mails. O Telegram notifica cada nova solicitação.' },
+    description:'Gerencie usuários: aprove solicitações, crie contas, redefina senhas, edite perfis e envie e-mails. O Telegram notifica cada nova solicitação.' },
   { id:'analytics', route:'/admin/analytics', selector:'.page-head', position:'bottom', icon:<BarChart2 size={20}/>,
     title:'Métricas de uso',
-    description:'Veja total de análises, usuários ativos, envios Telegram e dashboards públicos. Gráfico de fontes mais usadas, ranking de usuários e timeline de atividade recente.' },
+    description:'Total de análises, usuários ativos, envios Telegram e dashboards públicos. Gráfico de fontes mais usadas, ranking de usuários e timeline de atividade.' },
   { id:'finish', route:'/import', position:'center', icon:<CheckCircle size={20}/>,
     title:'Tour concluído! 🎉',
-    description:'Agora você conhece todo o sistema. Comece importando um documento real da Betel Sport e veja a IA gerar insights executivos em segundos. O botão ▶ está sempre disponível.' },
+    description:'Agora você conhece todo o sistema. Comece importando um documento real da Betel Sport e veja a IA gerar insights em segundos. O botão ▶ está sempre disponível.' },
 ];
+
+// Inject CSS to elevate the highlighted element above the overlay
+function injectHighlightStyle(selector: string | undefined, zOverlay: number) {
+  const id = 'tour-highlight-style';
+  const old = document.getElementById(id);
+  if (old) old.remove();
+  if (!selector) return;
+  const style = document.createElement('style');
+  style.id = id;
+  // Elevate element and remove blur on it
+  style.textContent = `
+    .tour-active ${selector} {
+      position: relative !important;
+      z-index: ${zOverlay + 1} !important;
+      filter: none !important;
+      backdrop-filter: none !important;
+      border-radius: 12px;
+      outline: 2px solid rgba(59,130,246,0.8);
+      outline-offset: 6px;
+      box-shadow: 0 0 0 6px rgba(59,130,246,0.12), 0 0 32px rgba(59,130,246,0.25) !important;
+      animation: tourElementGlow 2.5s ease-in-out infinite;
+    }
+    @keyframes tourElementGlow {
+      0%,100% { outline-color: rgba(59,130,246,0.7); box-shadow: 0 0 0 6px rgba(59,130,246,0.10), 0 0 28px rgba(59,130,246,0.20) !important; }
+      50%      { outline-color: rgba(59,130,246,1.0); box-shadow: 0 0 0 8px rgba(59,130,246,0.18), 0 0 48px rgba(59,130,246,0.45) !important; }
+    }
+  `;
+  document.body.appendChild(style);
+}
+
+function removeHighlightStyle() {
+  document.getElementById('tour-highlight-style')?.remove();
+}
+
+const OVERLAY_Z  = 60000;
+const TOOLTIP_Z  = 60002;
 
 function Tour({ onClose }: { onClose: () => void }) {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const [step, setStep] = useState(0);
-  const [rect, setRect] = useState<DOMRect | null>(null);
+  const [step, setStep]   = useState(0);
   const [ready, setReady] = useState(false);
   const timer = useRef<any>(null);
 
-  const cur    = STEPS[step];
+  const cur     = STEPS[step];
   const isFirst = step === 0;
   const isLast  = step === STEPS.length - 1;
-  const pct    = (step / (STEPS.length - 1)) * 100;
+  const pct     = (step / (STEPS.length - 1)) * 100;
 
   const activate = useCallback(() => {
     setReady(false);
+    removeHighlightStyle();
+    document.body.classList.add('tour-active');
+
     if (location.pathname !== cur.route) navigate(cur.route);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      setRect(cur.selector ? (document.querySelector(cur.selector)?.getBoundingClientRect() ?? null) : null);
+      injectHighlightStyle(cur.selector, OVERLAY_Z);
       setReady(true);
     }, 420);
   }, [step]); // eslint-disable-line
 
-  useEffect(() => { activate(); return () => clearTimeout(timer.current); }, [step]);
+  useEffect(() => {
+    activate();
+    return () => {
+      clearTimeout(timer.current);
+    };
+  }, [step]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      removeHighlightStyle();
+      document.body.classList.remove('tour-active');
+    };
+  }, []);
 
   // Keyboard nav
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'Enter') { if (isLast) onClose(); else setStep(s => s + 1); }
+      if (e.key === 'ArrowRight' || e.key === 'Enter') { if (isLast) { handleClose(); } else setStep(s => s + 1); }
       if (e.key === 'ArrowLeft') { if (!isFirst) setStep(s => s - 1); }
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [step, isFirst, isLast]);
 
-  const PAD = 10;
-  const spotlight = rect ? { top: rect.top - PAD, left: rect.left - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 } : null;
+  const handleClose = () => {
+    removeHighlightStyle();
+    document.body.classList.remove('tour-active');
+    onClose();
+  };
 
+  // Tooltip positioning — purely based on viewport, no spotlight needed
   const W = 400;
   const tipPos = (): React.CSSProperties => {
-    if (!rect || cur.position === 'center') return { position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:W };
+    if (!cur.selector || cur.position === 'center') {
+      return { position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:W };
+    }
+    const el = document.querySelector(cur.selector);
+    if (!el) return { position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:W };
+
+    const rect = el.getBoundingClientRect();
     const cx   = rect.left + rect.width / 2;
-    const safe = Math.min(Math.max(cx - W / 2, 12), window.innerWidth - W - 12);
-    if (cur.position === 'bottom') return { position:'fixed', top: rect.bottom + PAD + 14, left: safe, width:W };
-    if (cur.position === 'top')    return { position:'fixed', bottom: window.innerHeight - rect.top + PAD + 14, left: safe, width:W };
-    if (cur.position === 'right')  return { position:'fixed', top: Math.max(rect.top, 16), left: rect.right + PAD + 14, width:W };
-    if (cur.position === 'left')   return { position:'fixed', top: Math.max(rect.top, 16), right: window.innerWidth - rect.left + PAD + 14, width:W };
+    const safe = (x: number) => Math.min(Math.max(x, 12), window.innerWidth - W - 12);
+    const PAD  = 20;
+
+    if (cur.position === 'bottom') return { position:'fixed', top: rect.bottom + PAD, left: safe(cx - W / 2), width:W };
+    if (cur.position === 'top')    return { position:'fixed', bottom: window.innerHeight - rect.top + PAD, left: safe(cx - W / 2), width:W };
+    if (cur.position === 'right')  return { position:'fixed', top: Math.max(rect.top, 16), left: rect.right + PAD, width:W };
+    if (cur.position === 'left')   return { position:'fixed', top: Math.max(rect.top, 16), right: window.innerWidth - rect.left + PAD, width:W };
     return { position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:W };
   };
 
@@ -115,33 +178,33 @@ function Tour({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      {/* Overlay */}
-      <div style={{ position:'fixed', inset:0, zIndex:60000, background:'rgba(4,6,8,.8)', backdropFilter:'blur(3px)', opacity:ready?1:0, transition:'opacity .3s', pointerEvents:'none' }}/>
+      {/* Dark overlay — does NOT blur, element handles its own elevation */}
+      <div style={{
+        position:'fixed', inset:0, zIndex: OVERLAY_Z,
+        background:'rgba(4,6,8,0.78)',
+        opacity: ready ? 1 : 0,
+        transition:'opacity .3s',
+        pointerEvents: ready ? 'auto' : 'none',
+      }}
+      // Clicking outside tooltip = next step
+      onClick={goNext}
+      />
 
-      {/* Spotlight */}
-      {spotlight && ready && (
-        <div style={{
-          position:'fixed', zIndex:60001, pointerEvents:'none',
-          top:spotlight.top, left:spotlight.left, width:spotlight.width, height:spotlight.height,
-          borderRadius:14,
-          boxShadow:'0 0 0 9999px rgba(4,6,8,.8), 0 0 0 2px rgba(59,130,246,.8), 0 0 32px rgba(59,130,246,.4)',
-          animation:'tGlow 2.5s ease-in-out infinite',
-        }}/>
-      )}
-
-      {/* Tooltip */}
+      {/* Tooltip — above overlay */}
       {ready && (
-        <div style={{
-          ...tipPos(),
-          zIndex:60002,
-          background:'linear-gradient(145deg,#0d1520,#0b1018 60%,#0f1825)',
-          border:'1px solid rgba(59,130,246,.45)',
-          borderRadius:22,
-          padding:'22px 22px 18px',
-          boxShadow:'0 40px 100px rgba(0,0,0,.9), 0 0 0 1px rgba(59,130,246,.1), 0 0 50px rgba(59,130,246,.07)',
-          animation:'tIn .32s cubic-bezier(.34,1.15,.64,1)',
-        }}>
-
+        <div
+          style={{
+            ...tipPos(),
+            zIndex: TOOLTIP_Z,
+            background:'linear-gradient(145deg,#0d1520,#0b1018 60%,#0f1825)',
+            border:'1px solid rgba(59,130,246,.45)',
+            borderRadius:22,
+            padding:'22px 22px 18px',
+            boxShadow:'0 40px 100px rgba(0,0,0,.9), 0 0 0 1px rgba(59,130,246,.1), 0 0 50px rgba(59,130,246,.07)',
+            animation:'tIn .32s cubic-bezier(.34,1.15,.64,1)',
+          }}
+          onClick={e => e.stopPropagation()} // prevent overlay click
+        >
           {/* Progress */}
           <div style={{ height:2, background:'rgba(255,255,255,.06)', borderRadius:1, marginBottom:18, overflow:'hidden' }}>
             <div style={{ height:'100%', width:`${pct}%`, background:'linear-gradient(90deg,#3b82f6,#06b6d4,#8b5cf6)', backgroundSize:'200%', borderRadius:1, transition:'width .5s', animation:'shimmer 3s linear infinite' }}/>
@@ -160,7 +223,8 @@ function Tour({ onClose }: { onClose: () => void }) {
               <div style={{ fontFamily:'var(--serif)', fontSize:16, color:'#e8f0fe', lineHeight:1.25, marginBottom:3 }}>{cur.title}</div>
               <div style={{ fontSize:10.5, color:'#3d5270', fontFamily:'var(--mono)' }}>Passo {step+1} de {STEPS.length}</div>
             </div>
-            <button onClick={onClose} style={{ width:28, height:28, borderRadius:8, flexShrink:0, background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.1)', color:'#4e6080', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .15s' }}
+            <button onClick={handleClose}
+              style={{ width:28, height:28, borderRadius:8, flexShrink:0, background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.1)', color:'#4e6080', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .15s' }}
               onMouseEnter={e=>{e.currentTarget.style.background='rgba(244,63,94,.15)';e.currentTarget.style.color='#f43f5e';}}
               onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.04)';e.currentTarget.style.color='#4e6080';}}>
               <X size={12}/>
@@ -172,7 +236,7 @@ function Tour({ onClose }: { onClose: () => void }) {
 
           {/* Dots */}
           <div style={{ display:'flex', gap:4, marginBottom:14, justifyContent:'center' }}>
-            {STEPS.map((_,i)=>(
+            {STEPS.map((_,i) => (
               <button key={i} onClick={()=>setStep(i)} style={{
                 width:i===step?22:6, height:6, borderRadius:3, border:'none', padding:0, cursor:'pointer', transition:'all .25s',
                 background: i===step ? 'linear-gradient(90deg,#3b82f6,#06b6d4)' : i<step ? 'rgba(59,130,246,.35)' : 'rgba(255,255,255,.08)',
@@ -180,40 +244,25 @@ function Tour({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          {/* ── NAVIGATION BUTTONS ── */}
+          {/* Navigation */}
           <div style={{ display:'flex', gap:8 }}>
             {!isFirst && (
-              <button onClick={()=>setStep(s=>s-1)} style={{
-                ...btnBase,
-                padding:'0 16px',
-                background:'rgba(255,255,255,.06)',
-                border:'1px solid rgba(255,255,255,.12)',
-                color:'#7a92b4',
-                flexShrink:0,
-              }}
-              onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,.11)';e.currentTarget.style.color='#e8f0fe';}}
-              onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.06)';e.currentTarget.style.color='#7a92b4';}}>
+              <button onClick={()=>setStep(s=>s-1)} style={{ ...btnBase, padding:'0 16px', background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', color:'#7a92b4', flexShrink:0 }}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,.11)';e.currentTarget.style.color='#e8f0fe';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.06)';e.currentTarget.style.color='#7a92b4';}}>
                 <ChevronLeft size={15}/> Anterior
               </button>
             )}
-
-            <button onClick={()=>{ if(isLast){onClose();}else{setStep(s=>s+1);} }} style={{
-              ...btnBase,
-              flex:1,
-              background: isLast ? 'linear-gradient(135deg,#10b981,#06b6d4)' : 'linear-gradient(135deg,#3b82f6,#2563eb)',
-              color:'#fff',
-              boxShadow: isLast ? '0 0 20px rgba(16,185,129,.4)' : '0 0 20px rgba(59,130,246,.4)',
-            }}
-            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow=`0 4px 28px ${isLast?'rgba(16,185,129,.6)':'rgba(59,130,246,.6)'}`;}}
-            onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=`0 0 20px ${isLast?'rgba(16,185,129,.4)':'rgba(59,130,246,.4)'}`;}}
+            <button onClick={goNext} style={{ ...btnBase, flex:1, background: isLast ? 'linear-gradient(135deg,#10b981,#06b6d4)' : 'linear-gradient(135deg,#3b82f6,#2563eb)', color:'#fff', boxShadow: isLast ? '0 0 20px rgba(16,185,129,.4)' : '0 0 20px rgba(59,130,246,.4)' }}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow=`0 4px 28px ${isLast?'rgba(16,185,129,.6)':'rgba(59,130,246,.6)'}`;}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=`0 0 20px ${isLast?'rgba(16,185,129,.4)':'rgba(59,130,246,.4)'}`;}}
             >
               {isLast ? <><CheckCircle size={14}/> Começar a usar!</> : <>Próximo <ChevronRight size={15}/></>}
             </button>
           </div>
 
-          {/* Skip */}
           {!isLast && (
-            <button onClick={onClose} style={{ display:'block', width:'100%', marginTop:10, padding:'3px 0', background:'transparent', border:'none', color:'#3d5270', cursor:'pointer', fontSize:11.5, fontFamily:'var(--sans)', transition:'color .15s' }}
+            <button onClick={handleClose} style={{ display:'block', width:'100%', marginTop:10, padding:'3px 0', background:'transparent', border:'none', color:'#3d5270', cursor:'pointer', fontSize:11.5, fontFamily:'var(--sans)', transition:'color .15s' }}
               onMouseEnter={e=>e.currentTarget.style.color='#7a92b4'}
               onMouseLeave={e=>e.currentTarget.style.color='#3d5270'}>
               Pular tour
@@ -223,10 +272,6 @@ function Tour({ onClose }: { onClose: () => void }) {
       )}
 
       <style>{`
-        @keyframes tGlow {
-          0%,100%{box-shadow:0 0 0 9999px rgba(4,6,8,.8),0 0 0 2px rgba(59,130,246,.8),0 0 32px rgba(59,130,246,.4)}
-          50%    {box-shadow:0 0 0 9999px rgba(4,6,8,.8),0 0 0 2px rgba(59,130,246,1),0 0 48px rgba(59,130,246,.7)}
-        }
         @keyframes tIn {
           from{opacity:0;transform:translateY(10px) scale(.96)}
           to  {opacity:1;transform:translateY(0) scale(1)}
@@ -234,6 +279,11 @@ function Tour({ onClose }: { onClose: () => void }) {
       `}</style>
     </>
   );
+
+  function goNext() {
+    if (isLast) handleClose();
+    else setStep(s => s + 1);
+  }
 }
 
 export function TourButton() {
@@ -255,7 +305,7 @@ export function TourButton() {
           fontSize:12.5, color:'#e8f0fe', whiteSpace:'nowrap',
           boxShadow:'0 4px 20px rgba(0,0,0,.6)',
           pointerEvents:'none', fontFamily:'var(--sans)',
-          animation:'tIn .4s ease',
+          animation:'hintIn .4s ease',
         }}>
           ▶ Iniciar tour do sistema
           <div style={{ position:'absolute', bottom:-5, right:17, width:10, height:10, background:'#0b1018', border:'1px solid rgba(59,130,246,.35)', borderTop:'none', borderLeft:'none', transform:'rotate(45deg)' }}/>
@@ -288,7 +338,7 @@ export function TourButton() {
           0%,100%{box-shadow:0 4px 24px rgba(59,130,246,.5),0 0 0 5px rgba(59,130,246,.1)}
           50%    {box-shadow:0 4px 24px rgba(59,130,246,.7),0 0 0 12px rgba(59,130,246,.06)}
         }
-        @keyframes tIn {
+        @keyframes hintIn {
           from{opacity:0;transform:translateY(8px)}
           to  {opacity:1;transform:translateY(0)}
         }
