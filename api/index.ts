@@ -153,3 +153,70 @@ app.post('/api/telegram/screenshot', upload.single('image'), async (req, res) =>
 
 // ── Vercel handler export ─────────────────────────────
 export default (req: VercelRequest, res: VercelResponse) => app(req as any, res as any);
+
+// ═══════════════════════════════════════════════════
+// ADMIN ROUTES
+// ═══════════════════════════════════════════════════
+
+// ── List all users (admin only) ───────────────────
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const supabase = getAdmin();
+    const { data: { users }, error } = await supabase.auth.admin.listUsers();
+    if (error) return res.status(500).json({ message: error.message });
+
+    const { data: profiles } = await supabase.from('profiles').select('*');
+    const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
+
+    const result = users.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      name: profileMap[u.id]?.name || u.user_metadata?.name || '',
+      role: profileMap[u.id]?.role || 'user',
+      status: profileMap[u.id]?.status || 'pending',
+      created_at: u.created_at,
+      last_sign_in: u.last_sign_in_at,
+    }));
+
+    res.json({ users: result });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Promote user to admin ──────────────────────────
+app.post('/api/admin/promote', async (req, res) => {
+  try {
+    const { user_id, role } = req.body;
+    if (!user_id) return res.status(400).json({ message: 'user_id obrigatório' });
+    const supabase = getAdmin();
+    await supabase.from('profiles').update({ role: role || 'admin' }).eq('id', user_id);
+    res.json({ ok: true, message: `Usuário promovido a ${role || 'admin'}` });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Approve / reject user ──────────────────────────
+app.post('/api/admin/approve', async (req, res) => {
+  try {
+    const { user_id, approved } = req.body;
+    if (!user_id) return res.status(400).json({ message: 'user_id obrigatório' });
+    const supabase = getAdmin();
+    await supabase.from('profiles').update({ status: approved ? 'active' : 'rejected' }).eq('id', user_id);
+    res.json({ ok: true, status: approved ? 'active' : 'rejected' });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Check if email exists ──────────────────────────
+app.get('/api/admin/check-user', async (req, res) => {
+  try {
+    const email = req.query.email as string;
+    if (!email) return res.status(400).json({ message: 'email obrigatório' });
+    const supabase = getAdmin();
+    const { data: { users } } = await supabase.auth.admin.listUsers();
+    const found = users.find((u: any) => u.email?.toLowerCase().includes(email.toLowerCase()));
+    if (found) {
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', found.id).single();
+      res.json({ found: true, user: { id: found.id, email: found.email, name: profile?.name, role: profile?.role, status: profile?.status, created_at: found.created_at } });
+    } else {
+      res.json({ found: false });
+    }
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});

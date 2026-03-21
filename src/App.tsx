@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { useState } from 'react';
-import { Upload, Clock, Send, Settings, LogOut } from 'lucide-react';
+import { Upload, Clock, Send, Settings, LogOut, Shield } from 'lucide-react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import LoginPage from './pages/LoginPage';
 import ImportPage from './pages/ImportPage';
 import DashboardPage from './pages/DashboardPage';
 import { HistoryPage } from './pages/HistoryPage';
+import AdminPage from './pages/AdminPage';
 import { signOut, updateProfile } from './lib/supabase';
 
 function Sidebar() {
@@ -33,15 +34,21 @@ function Sidebar() {
           <Link to="/telegram" className={`nav-link ${is('/telegram') ? 'active' : ''}`}><Send     size={15}/> Telegram</Link>
           <Link to="/settings" className={`nav-link ${is('/settings') ? 'active' : ''}`}><Settings size={15}/> Configurações</Link>
         </div>
+        {profile?.role === 'admin' && (
+          <div className="nav-section">
+            <div className="nav-section-label">Administração</div>
+            <Link to="/admin" className={`nav-link ${is('/admin') ? 'active' : ''}`}><Shield size={15}/> Usuários</Link>
+          </div>
+        )}
       </nav>
       <div className="sidebar-foot">
         <div className="user-row">
           <div className="user-avatar">{(profile?.name || user?.email || 'U')[0].toUpperCase()}</div>
           <div>
             <div className="user-name">{profile?.name || user?.email?.split('@')[0]}</div>
-            <div className="user-role">Betel Sport</div>
+            <div className="user-role">{profile?.role === 'admin' ? 'Administrador' : 'Betel Sport'}</div>
           </div>
-          <button className="icon-btn" onClick={() => signOut()} style={{ marginLeft:'auto' }}><LogOut size={14}/></button>
+          <button className="icon-btn" onClick={() => signOut()} style={{ marginLeft:'auto' }} title="Sair"><LogOut size={14}/></button>
         </div>
       </div>
     </aside>
@@ -100,6 +107,7 @@ export default function App() {
           <Route path="/history"       element={<PrivateLayout><HistoryPage/></PrivateLayout>}/>
           <Route path="/dashboard/:id" element={<PrivateLayout><DashboardPage/></PrivateLayout>}/>
           <Route path="/telegram"      element={<PrivateLayout><TelegramPage/></PrivateLayout>}/>
+          <Route path="/admin"         element={<PrivateLayout><AdminPage/></PrivateLayout>}/>
           <Route path="/settings"      element={<PrivateLayout><div className="page-head"><h1>Configurações</h1></div></PrivateLayout>}/>
           <Route path="/"  element={<Navigate to="/import" replace/>}/>
           <Route path="*"  element={<Navigate to="/import" replace/>}/>
