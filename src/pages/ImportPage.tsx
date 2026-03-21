@@ -31,6 +31,7 @@ export default function ImportPage() {
   const [dbConn, setDbConn] = useState('');
   const [dbQuery, setDbQuery] = useState('');
   const [ncPath, setNcPath] = useState('');
+  const [template, setTemplate] = useState('geral');
   const [telegramEnabled, setTelegramEnabled] = useState(profile?.telegram_enabled ?? true);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');

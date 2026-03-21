@@ -544,3 +544,106 @@ app.post('/api/analyze', async (req, res) => {
     res.json(result);
   } catch (err: any) { res.status(500).json({ message: err.message }); }
 });
+
+// ── Admin Analytics ───────────────────────────────
+app.get('/api/admin/analytics', async (_req, res) => {
+  try {
+    const supabase = getAdmin();
+
+    // Total counts
+    const [usersRes, analysesRes, shareRes] = await Promise.all([
+      supabase.auth.admin.listUsers(),
+      supabase.from('analyses').select('id, source_type, telegram_sent, is_public, created_at, user_id, title', { count: 'exact' }),
+      supabase.from('share_history').select('id', { count: 'exact' }),
+    ]);
+
+    const users    = usersRes.data?.users || [];
+    const analyses = analysesRes.data    || [];
+
+    // By source type
+    const bySource: Record<string, number> = {};
+    analyses.forEach((a: any) => { bySource[a.source_type] = (bySource[a.source_type] || 0) + 1; });
+    const bySourceArr = Object.entries(bySource).map(([source_type, count]) => ({ source_type, count })).sort((a, b) => b.count - a.count);
+
+    // By user
+    const byUser = users.map((u: any) => {
+      const userAnalyses = analyses.filter((a: any) => a.user_id === u.id);
+      const { data: profile } = { data: { name: u.user_metadata?.name } };
+      return {
+        id: u.id, email: u.email,
+        name: u.user_metadata?.name || u.email?.split('@')[0],
+        analyses_count: userAnalyses.length,
+        last_analysis: userAnalyses[0]?.created_at || null,
+      };
+    }).sort((a: any, b: any) => b.analyses_count - a.analyses_count);
+
+    // Recent analyses with user info
+    const recent = analyses.slice(0, 10).map((a: any) => {
+      const u = users.find((u: any) => u.id === a.user_id);
+      return {
+        ...a,
+        user_name: u?.user_metadata?.name,
+        user_email: u?.email,
+      };
+    });
+
+    res.json({
+      total_users:     users.length,
+      total_analyses:  analyses.length,
+      telegram_sent:   analyses.filter((a: any) => a.telegram_sent).length,
+      public_analyses: analyses.filter((a: any) => a.is_public).length,
+      by_source:       bySourceArr,
+      by_user:         byUser,
+      recent,
+    });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
+
+// ── Schedule — run now ────────────────────────────
+app.post('/api/schedule/run', async (req, res) => {
+  try {
+    const { schedule_id } = req.body;
+    const supabase = getAdmin();
+
+    const { data: schedule } = await supabase.from('schedules').select('*').eq('id', schedule_id).single();
+    if (!schedule) return res.status(404).json({ message: 'Agendamento não encontrado' });
+
+    const { fetchFromNextcloud } = await getServices();
+    const parseFile = await getParser();
+    const analyzeWithClaude = await getClaude();
+
+    const { buffer, filename, mimetype } = await fetchFromNextcloud(schedule.source_path);
+    const { text } = await parseFile(buffer, filename, mimetype, filename.split('.').pop() || '');
+    const result = await analyzeWithClaude(text, schedule.source_type);
+
+    // Save analysis
+    const { data: saved } = await supabase.from('analyses').insert({
+      user_id:       schedule.user_id,
+      title:         `${schedule.name} — ${new Date().toLocaleDateString('pt-BR')}`,
+      source_type:   schedule.source_type,
+      source_name:   schedule.source_path,
+      insights:      result.insights,
+      charts_config: result.charts,
+      kpis:          result.kpis,
+      raw_text:      text.slice(0, 50000),
+      template:      schedule.template,
+    }).select().single();
+
+    // Update last_run
+    await supabase.from('schedules').update({ last_run: new Date().toISOString() }).eq('id', schedule_id);
+
+    // Telegram notification
+    if (schedule.telegram_notify) {
+      const { data: profile } = await supabase.from('profiles').select('telegram_chat_id, telegram_token').eq('id', schedule.user_id).single();
+      if (profile?.telegram_chat_id && profile?.telegram_token) {
+        const { buildTelegramMessage } = await getServices();
+        const msg = buildTelegramMessage(saved, { include_insights: true, include_kpis: true });
+        await axios.post(`https://api.telegram.org/bot${profile.telegram_token}/sendMessage`, {
+          chat_id: profile.telegram_chat_id, text: msg, parse_mode: 'Markdown',
+        }, { timeout: 10000 });
+      }
+    }
+
+    res.json({ ok: true, analysis_id: saved?.id });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});

@@ -15,7 +15,7 @@ import { useAuth } from '../hooks/useAuth';
 import type { Analysis, Insight, ChartConfig } from '../types';
 import { jsPDF } from 'jspdf';
 
-const CHART_COLORS = ['#d4a853', '#3ecf8e', '#7c8ef0', '#e0943a', '#f26b6b', '#22d3ee', '#a78bfa', '#fb923c'];
+const CHART_COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#06b6d4', '#f59e0b', '#f43f5e', '#22d3ee', '#fb923c'];
 
 function renderChart(cfg: ChartConfig) {
   const data = cfg.data[0]?.labels.map((label, i) => ({
@@ -95,6 +95,10 @@ export default function DashboardPage({ readOnly = false }: { readOnly?: boolean
   const [regenerating, setRegenerating] = useState(false);
   const [focusInsight, setFocusInsight] = useState<number | null>(null);
   const [focusLoading, setFocusLoading] = useState(false);
+  const [openComments, setOpenComments] = useState<number|null>(null);
+  const [comments, setComments] = useState<Record<number, any[]>>({});
+  const [commentText, setCommentText] = useState('');
+  const [savingComment, setSavingComment] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -115,6 +119,45 @@ export default function DashboardPage({ readOnly = false }: { readOnly?: boolean
     };
     load();
   }, [id, token]);
+
+  const loadComments = async (insightId: number) => {
+    if (!analysis) return;
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+    const { data } = await sb.from('insight_comments')
+      .select('*').eq('analysis_id', analysis.id).eq('insight_id', insightId)
+      .order('created_at', { ascending: true });
+    setComments(prev => ({ ...prev, [insightId]: data || [] }));
+  };
+
+  const toggleComments = async (insightId: number) => {
+    if (openComments === insightId) { setOpenComments(null); return; }
+    setOpenComments(insightId);
+    await loadComments(insightId);
+  };
+
+  const addComment = async (insightId: number) => {
+    if (!commentText.trim() || !analysis || !user) return;
+    setSavingComment(true);
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+    const { data: profile } = await sb.from('profiles').select('name').eq('id', user.id).single();
+    await sb.from('insight_comments').insert({
+      analysis_id: analysis.id, insight_id: insightId,
+      user_id: user.id, author_name: profile?.name || user.email,
+      content: commentText.trim(),
+    });
+    setCommentText('');
+    await loadComments(insightId);
+    setSavingComment(false);
+  };
+
+  const deleteComment = async (commentId: string, insightId: number) => {
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+    await sb.from('insight_comments').delete().eq('id', commentId);
+    await loadComments(insightId);
+  };
 
   // ── Regenerate all 10 insights ───────────────────
   const handleRegenerate = async () => {
@@ -411,6 +454,55 @@ Raw text: ${analysis.raw_text?.slice(0, 30000) || ''}`;
               {ins.value && (
                 <div className={`insight-value ${ins.trend}`}>
                   {trendIcon(ins.trend)} {ins.value} {ins.trendValue && <span>{ins.trendValue}</span>}
+                </div>
+              )}
+              {/* Comments toggle */}
+              {!readOnly && (
+                <button
+                  onClick={() => toggleComments(ins.id)}
+                  style={{
+                    display:'flex', alignItems:'center', gap:5, marginTop:10,
+                    background:'transparent', border:'none', color:'var(--t3)',
+                    cursor:'pointer', fontSize:11, fontFamily:'var(--sans)', padding:0,
+                    transition:'color .14s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#60a5fa')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--t3)')}
+                >
+                  <MessageCircle size={12}/>
+                  {(comments[ins.id]?.length || 0) > 0 ? `${comments[ins.id].length} comentário${comments[ins.id].length !== 1 ? 's' : ''}` : 'Comentar'}
+                </button>
+              )}
+              {/* Comments panel */}
+              {openComments === ins.id && (
+                <div style={{ marginTop:10, borderTop:'1px solid var(--line-1)', paddingTop:10 }}>
+                  {(comments[ins.id] || []).map(cm => (
+                    <div key={cm.id} style={{ display:'flex', gap:8, marginBottom:8, alignItems:'flex-start' }}>
+                      <div className="user-avatar" style={{ width:22, height:22, fontSize:10, flexShrink:0 }}>
+                        {(cm.author_name || '?')[0].toUpperCase()}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:10, fontWeight:600, color:'var(--t2)', marginBottom:2 }}>{cm.author_name}</div>
+                        <div style={{ fontSize:11.5, color:'var(--t1)', lineHeight:1.4 }}>{cm.content}</div>
+                        <div style={{ fontSize:10, color:'var(--t3)', marginTop:2 }}>{new Date(cm.created_at).toLocaleString('pt-BR')}</div>
+                      </div>
+                      {cm.user_id === user?.id && (
+                        <button onClick={() => deleteComment(cm.id, ins.id)} className="icon-btn danger" style={{ padding:2 }}><Trash2 size={10}/></button>
+                      )}
+                    </div>
+                  ))}
+                  <div style={{ display:'flex', gap:6, marginTop:8 }}>
+                    <input
+                      value={commentText} onChange={e => setCommentText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addComment(ins.id); }}}
+                      placeholder="Adicionar observação..."
+                      style={{ flex:1, background:'var(--surface-3)', border:'1px solid var(--line-2)', borderRadius:6, padding:'6px 9px', color:'var(--t1)', fontSize:11.5, fontFamily:'var(--sans)', outline:'none' }}
+                    />
+                    <button onClick={() => addComment(ins.id)} disabled={savingComment || !commentText.trim()}
+                      style={{ background:'linear-gradient(135deg,#3b82f6,#2563eb)', border:'none', color:'#fff', borderRadius:6, padding:'0 10px', cursor:'pointer', fontSize:11, fontWeight:600, fontFamily:'var(--sans)' }}>
+                      {savingComment ? '...' : 'Ok'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
