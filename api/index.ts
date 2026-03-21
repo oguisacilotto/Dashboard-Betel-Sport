@@ -10,15 +10,15 @@ dotenv.config();
 
 // ── Lazy-load heavy services to avoid cold-start issues ──
 async function getClaude() {
-  const { analyzeWithClaude } = await import('./services/claude');
+  const { analyzeWithClaude } = await import('./services/claude.js');
   return analyzeWithClaude;
 }
 async function getParser() {
-  const { parseFile } = await import('./services/parser');
+  const { parseFile } = await import('./services/parser.js');
   return parseFile;
 }
 async function getServices() {
-  const m = await import('./services/services');
+  const m = await import('./services/services.js');
   return m;
 }
 
