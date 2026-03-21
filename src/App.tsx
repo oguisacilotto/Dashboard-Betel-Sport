@@ -7,6 +7,7 @@ import ImportPage from './pages/ImportPage';
 import DashboardPage from './pages/DashboardPage';
 import { HistoryPage } from './pages/HistoryPage';
 import AdminPage from './pages/AdminPage';
+import SettingsPage from './pages/SettingsPage';
 import { signOut, updateProfile } from './lib/supabase';
 
 function Sidebar() {
@@ -139,7 +140,7 @@ export default function App() {
           <Route path="/dashboard/:id" element={<PrivateLayout><DashboardPage/></PrivateLayout>}/>
           <Route path="/telegram"      element={<PrivateLayout><TelegramPage/></PrivateLayout>}/>
           <Route path="/admin"         element={<PrivateLayout adminOnly><AdminPage/></PrivateLayout>}/>
-          <Route path="/settings"      element={<PrivateLayout><div className="page-head"><h1>Configurações</h1></div></PrivateLayout>}/>
+          <Route path="/settings" element={<PrivateLayout><SettingsPage/></PrivateLayout>}/>
           <Route path="/"              element={<Navigate to="/import" replace/>}/>
           <Route path="*"              element={<Navigate to="/import" replace/>}/>
         </Routes>

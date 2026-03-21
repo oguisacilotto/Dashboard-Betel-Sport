@@ -467,3 +467,19 @@ app.post('/api/admin/promote-self', async (req, res) => {
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ message: err.message }); }
 });
+
+// ── Telegram — test message ───────────────────────
+app.post('/api/telegram/test', async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    const supabase = getAdmin();
+    const { data: profile } = await supabase.from('profiles').select('telegram_chat_id, telegram_token, name').eq('id', user_id).single();
+    if (!profile?.telegram_chat_id || !profile?.telegram_token) return res.status(400).json({ message: 'Telegram não configurado. Salve o token e o Chat ID primeiro.' });
+    await axios.post(`https://api.telegram.org/bot${profile.telegram_token}/sendMessage`, {
+      chat_id: profile.telegram_chat_id,
+      text: `✅ *Betel Sport — Teste de conexão*\n\nOlá, ${profile.name || 'usuário'}! Seu Telegram está configurado corretamente.\n\n_Central de Resultados · Betel Sport_`,
+      parse_mode: 'Markdown',
+    }, { timeout: 8000 });
+    res.json({ ok: true });
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
+});
