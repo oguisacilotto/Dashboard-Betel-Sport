@@ -12,6 +12,7 @@ import ComparePage from './pages/ComparePage';
 import SchedulePage from './pages/SchedulePage';
 import SettingsPage from './pages/SettingsPage';
 import { signOut, updateProfile } from './lib/supabase';
+import { TourButton } from './components/Tour';
 
 function Sidebar() {
   const { user, profile } = useAuth();
@@ -83,6 +84,7 @@ function PrivateLayout({ children, adminOnly = false }: { children: React.ReactN
     <div className="app">
       <Sidebar/>
       <main className="main"><div className="content">{children}</div></main>
+      <TourButton/>
     </div>
   );
 }
