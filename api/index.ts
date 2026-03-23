@@ -63,7 +63,7 @@ app.post('/api/analyze/file', upload.single('file'), async (req, res) => {
     const { type } = req.body;
     const analyzeWithClaude = await getClaude();
     const parseFile = await getParser();
-    const { text, base64 } = await parseFile(req.file.buffer, req.file.originalname, req.file.mimetype, type);
+    const { text, base64 } = await parseFile(req.file.buffer, req.file.originalname, req.file.mimetype);
     const result = await analyzeWithClaude(text, type, base64);
     res.json(result);
   } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -105,7 +105,7 @@ app.post('/api/analyze/nextcloud', async (req, res) => {
     const { fetchFromNextcloud } = await getServices();
     const { buffer, filename, mimetype } = await fetchFromNextcloud(ncPath);
     const ext = filename.split('.').pop()?.toLowerCase() || '';
-    const { text, base64 } = await parseFile(buffer, filename, mimetype, ext);
+    const { text, base64 } = await parseFile(buffer, filename, mimetype);
     const result = await analyzeWithClaude(text, 'nextcloud', base64);
     res.json(result);
   } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -280,7 +280,7 @@ app.get('/api/auth/approve/:userId', async (req, res) => {
     const { userId } = req.params;
     const supabase = getAdmin();
 
-    const { error } = await supabase.auth.admin.updateUser(userId, {
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
       email_confirm: true,
       user_metadata: { status: 'approved' },
     });
@@ -386,7 +386,7 @@ app.post('/api/admin/approve/:userId', async (req, res) => {
   try {
     const supabase = getAdmin();
     const { userId } = req.params;
-    await supabase.auth.admin.updateUser(userId, { email_confirm: true, user_metadata: { status: 'approved' } });
+    await supabase.auth.admin.updateUserById(userId, { email_confirm: true, user_metadata: { status: 'approved' } });
     await supabase.from('profiles').update({ status: 'active' }).eq('id', userId);
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -407,7 +407,7 @@ app.post('/api/admin/update-user', async (req, res) => {
   try {
     const { userId, name, email, role } = req.body;
     const supabase = getAdmin();
-    if (email) await supabase.auth.admin.updateUser(userId, { email });
+    if (email) await supabase.auth.admin.updateUserById(userId, { email });
     await supabase.from('profiles').update({ name, role }).eq('id', userId);
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -418,7 +418,7 @@ app.post('/api/admin/reset-password', async (req, res) => {
   try {
     const { userId, password } = req.body;
     const supabase = getAdmin();
-    const { error } = await supabase.auth.admin.updateUser(userId, { password });
+    const { error } = await supabase.auth.admin.updateUserById(userId, { password });
     if (error) return res.status(500).json({ message: error.message });
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -444,9 +444,8 @@ app.post('/api/admin/send-email', async (req, res) => {
       }, { timeout: 8000 });
     }
 
-    // Send via Supabase magic link / reset as carrier (best available without SMTP)
+    // Send via Supabase invite (best available without SMTP)
     await supabase.auth.admin.inviteUserByEmail(user.user.email, {
-      data: { admin_message_subject: subject, admin_message_body: body },
       redirectTo: `${process.env.VITE_APP_URL || 'https://dashboard-betel-sport.vercel.app'}/login`,
     });
 
@@ -460,7 +459,7 @@ app.post('/api/admin/promote-self', async (req, res) => {
     const { userId } = req.body;
     const supabase = getAdmin();
     await supabase.from('profiles').update({ role: 'admin', status: 'active' }).eq('id', userId);
-    await supabase.auth.admin.updateUser(userId, {
+    await supabase.auth.admin.updateUserById(userId, {
       email_confirm: true,
       user_metadata: { role: 'admin', status: 'approved' },
     });
@@ -613,7 +612,7 @@ app.post('/api/schedule/run', async (req, res) => {
     const analyzeWithClaude = await getClaude();
 
     const { buffer, filename, mimetype } = await fetchFromNextcloud(schedule.source_path);
-    const { text } = await parseFile(buffer, filename, mimetype, filename.split('.').pop() || '');
+    const { text } = await parseFile(buffer, filename, mimetype);
     const result = await analyzeWithClaude(text, schedule.source_type);
 
     // Save analysis
