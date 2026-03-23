@@ -7,7 +7,8 @@ import {
 } from 'recharts';
 import {
   Share2, Send, Download, ChevronDown, ChevronUp,
-  Edit2, Check, X, Copy, ExternalLink
+  Edit2, Check, X, Copy, ExternalLink,
+  RefreshCw, Sparkles, Loader, MessageCircle, Trash2
 } from 'lucide-react';
 import { getAnalysis, getAnalysisByToken, updateAnalysis, togglePublic, addShareRecord } from '../lib/supabase';
 import { sendTelegramReport, captureAndSendTelegram } from '../lib/api';
