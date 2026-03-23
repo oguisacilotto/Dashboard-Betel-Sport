@@ -7,7 +7,25 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+    <div id="app-loader" style="min-height:100vh;background:#040608;display:flex;align-items:center;justify-content:center;">
+      <div style="text-align:center">
+        <div style="width:40px;height:40px;background:linear-gradient(135deg,#3b82f6,#06b6d4);border-radius:10px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><polygon points="8,1 15,6 12,15 4,15 1,6" fill="#040608"/></svg>
+        </div>
+        <div style="color:#3d5270;font-family:system-ui;font-size:12px;letter-spacing:.1em;text-transform:uppercase;">Carregando...</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Remove loader once React mounts
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        var l = document.getElementById('app-loader');
+        if (l) l.style.display = 'none';
+      }, 100);
+    });
+  </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
